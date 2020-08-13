@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <memory>
+#include <random>
 #if defined(_OPENMP)
     #include <omp.h>
 #endif
@@ -17,6 +18,16 @@ namespace pegasus {
         float n     {   0   };
         std::unordered_map<libchess::Move::value_type, std::unique_ptr<MCTS_Node>> children;
     };
+
+    /**
+     * Search tree root.
+     */
+    extern std::unique_ptr<MCTS_Node> search_root;
+
+    /**
+     * Random engine.
+     */
+    extern std::mt19937 mt_eng;
 
     /**
      * A MCTS rollout determines the value of a node through random play.

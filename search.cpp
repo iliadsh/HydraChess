@@ -2,13 +2,17 @@
 #include "config.hpp"
 
 namespace pegasus {
+    std::unique_ptr<MCTS_Node> search_root = std::make_unique<MCTS_Node>();
+    std::random_device rd;
+    std::mt19937 mt_eng{rd()};
+
     float rollout(libchess::Position pos) {
         libchess::Color curr_player = pos.side_to_move();
         while (pos.game_state() == libchess::Position::GameState::IN_PROGRESS) {
             //make random moves until termination
             libchess::MoveList move_list = pos.legal_move_list();
-            int rand_index = rand() % move_list.size();
-            pos.make_move(*(move_list.begin() + rand_index));
+            std::uniform_int_distribution<int> distribution(0, static_cast<int>(move_list.size()));
+            pos.make_move(*(move_list.begin() + distribution(mt_eng)));
         }
         if (pos.game_state() == libchess::Position::GameState::CHECKMATE) {
             //checkmated player is the side to move
@@ -57,7 +61,8 @@ namespace pegasus {
         float max_uct = -INFINITY;
         libchess::Move best_move;
         libchess::MoveList move_list = pos.legal_move_list();
-        move_list.sort([](const libchess::Move& move) -> int { return rand() % 100; });
+        std::uniform_int_distribution<int> distribution(0, 100);
+        move_list.sort([distribution](const libchess::Move& move) -> int { return distribution(mt_eng); });
         for (const auto& move : move_list) {
             auto& child = search_node->children[move.value_sans_type()];
             //if the node is unexplored

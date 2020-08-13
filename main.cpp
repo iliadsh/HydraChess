@@ -6,7 +6,6 @@ using namespace pegasus;
 
 libchess::Position global_pos{ libchess::constants::STARTPOS_FEN };
 libchess::UCIService uci(config::ENGINE_NAME, config::ENGINE_AUTHOR);
-std::unique_ptr<MCTS_Node> search_root = std::make_unique<MCTS_Node>();
 
 bool stopped = false;
 
@@ -53,15 +52,18 @@ void handle_position(const libchess::UCIPositionParameters& params) {
                 search_root = std::make_unique<MCTS_Node>();
             }
         }
-        
     }
 }
 
-int main() {
-    srand(static_cast<int>(time(NULL)));
-    uci.register_position_handler(handle_position);
-    uci.register_go_handler(handle_go);
-    uci.register_stop_handler(handle_stop);
-    uci.run();
+int main(int argc, char* argv[]) {
+    if (argc > 1 && strcmp(argv[1], "-train") == 0) {
+        //perform training
+    } 
+    else {
+        uci.register_position_handler(handle_position);
+        uci.register_go_handler(handle_go);
+        uci.register_stop_handler(handle_stop);
+        uci.run();
+    }    
     return 0;
 }
