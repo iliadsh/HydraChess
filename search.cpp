@@ -11,8 +11,18 @@ namespace pegasus {
         while (pos.game_state() == libchess::Position::GameState::IN_PROGRESS) {
             //make random moves until termination
             libchess::MoveList move_list = pos.legal_move_list();
-            std::uniform_int_distribution<int> distribution(0, static_cast<int>(move_list.size()));
-            pos.make_move(*(move_list.begin() + distribution(mt_eng)));
+            bool found_capture{false};
+            for (const auto& move : move_list) {
+                if (pos.is_capture_move(move)) {
+                    found_capture = true;
+                    pos.make_move(move);
+                    break;
+                }
+            }
+            if (!found_capture) {
+                std::uniform_int_distribution<int> distribution(0, static_cast<int>(move_list.size() - 1));
+                pos.make_move(*(move_list.begin() + distribution(mt_eng)));
+            }
         }
         if (pos.game_state() == libchess::Position::GameState::CHECKMATE) {
             //checkmated player is the side to move
@@ -61,8 +71,6 @@ namespace pegasus {
         float max_uct = -INFINITY;
         libchess::Move best_move;
         libchess::MoveList move_list = pos.legal_move_list();
-        std::uniform_int_distribution<int> distribution(0, 100);
-        move_list.sort([distribution](const libchess::Move& move) -> int { return distribution(mt_eng); });
         for (const auto& move : move_list) {
             auto& child = search_node->children[move.value_sans_type()];
             //if the node is unexplored
