@@ -13,10 +13,17 @@ namespace pegasus {
      * A node in the search tree. Holds total evaluation, number of visits, and the child node pointers.
      */
     struct MCTS_Node {
-        bool init   { false };
-        float w     {   0   };
-        float n     {   0   };
-        std::unordered_map<libchess::Move::value_type, std::unique_ptr<MCTS_Node>> children;
+        bool init                                                                           {  false  }; //initialized flag
+        float w                                                                             {    0    }; //total action
+        float n                                                                             {    0    }; //visit count
+        MCTS_Node* parent                                                                   { nullptr }; //parent node*
+        libchess::MoveList move_list;                                                                    //move list cache
+        libchess::Position::hash_type position_hash;                                                     //position hash
+        std::unordered_map<libchess::Move::value_type, std::unique_ptr<MCTS_Node>> children;             //child nodes
+
+        float UCT() const {
+            return (w / n) + sqrtf(2 * logf(parent->n) / n);
+        }
     };
 
     /**

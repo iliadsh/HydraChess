@@ -43,13 +43,10 @@ void handle_position(const libchess::UCIPositionParameters& params) {
             global_pos.make_move(*libchess::Move::from(move));
         }
         if (global_pos.previous_move().has_value()) {
-            libchess::Move last_move = *global_pos.previous_move();
-            auto& next_node = search_root->children[last_move.value_sans_type()];
-            if (next_node != nullptr) {
-                search_root = std::move(next_node);
-            }
-            else {
-                search_root = std::make_unique<MCTS_Node>();
+            libchess::Move last_move = *global_pos.previous_move(); //get last move and possibly move tree down
+            auto& next_node = search_root->children.find(last_move.value_sans_type());
+            if (next_node != search_root->children.end()) {
+                search_root = std::move(next_node->second);
             }
         }
     }
