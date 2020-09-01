@@ -1,7 +1,8 @@
 #include "train.hpp"
 
 namespace hydra{
-    void train(ValueNetwork net, const std::string& path) {
+    void train(Eval net, const std::string& path) {
+        std::cout << "Training Evaluator..." << std::endl;
         //load from checkpoint
         if(config::LOAD_CHECKPOINT) {
             torch::load(net, config::WEIGHTS_PATH);
@@ -19,13 +20,15 @@ namespace hydra{
         torch::Device device(device_type);
         //move model to device
         net->to(device);
-
+        
         //load dataset
         std::cout << "Loading train dataset...\n";
         auto data_set = PositionDataset(path).map(torch::data::transforms::Stack<>());
+        int dataset_size = data_set.size().value();
+
         //setup dataloader
         auto data_loader = torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
-            data_set,
+            std::move(data_set),
             torch::data::DataLoaderOptions()
                 .batch_size(config::BATCH_SIZE)
                 .workers(4));
@@ -33,13 +36,11 @@ namespace hydra{
 
         //create gradient optimizer
         torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(1e-3));
-        
-        int dataset_size = data_set.size().value();
 
         //best loss during training
         float best_mse = std::numeric_limits<float>::max();
         
-        std::printf("Training for %ld epochs with a batch size of %ld...\n", config::NUM_EPOCH, config::BATCH_SIZE);
+        std::printf("Training for %ld epochs with a dataset size of %ld and batch size of %ld...\n", config::NUM_EPOCH, dataset_size, config::BATCH_SIZE);
         //train epochs
         for (int epoch = 1; epoch <= config::NUM_EPOCH; epoch++) {
             net->train();
@@ -52,11 +53,11 @@ namespace hydra{
             //minibatching
             for (auto& batch : *data_loader) {
                 auto pos = batch.data.to(device), score = batch.target.to(device);
-
+                
                 //calculate loss
                 optimizer.zero_grad();
                 auto output = net->forward(pos);
-                auto loss = torch::mse_loss(output, score);;
+                auto loss = torch::mse_loss(output, score);
                 
                 //do gradient step
                 loss.backward();
@@ -81,13 +82,13 @@ namespace hydra{
             }
 
             mse /= (float)count;
-            printf(" Mean squared error: %f\n", mse);
+            printf(" Mean Loss: %f\n", mse);
 
             //save best model
             if (mse < best_mse) {
                 //ensure model is on CPU before saving
                 net->to(torch::kCPU);
-                torch::save(net, config::WEIGHTS_PATH);
+                torch::save(net, std::string(config::WEIGHTS_PATH) + "evaluator.pt");
                 //return back to original device
                 net->to(device);
                 best_mse = mse;

@@ -9,6 +9,7 @@ using namespace hydra;
 
 libchess::Position global_pos{ libchess::constants::STARTPOS_FEN };
 libchess::UCIService uci(config::ENGINE_NAME, config::ENGINE_AUTHOR);
+MCTSearch mcts;
 
 bool stopped = false;
 
@@ -18,7 +19,7 @@ bool stopped = false;
 void handle_go(const libchess::UCIGoParameters& params) {
     stopped = false;
     int predicted_score{0};
-    libchess::Move chosen_move = choose_best_move(global_pos, search_root, stopped, predicted_score);
+    libchess::Move chosen_move = mcts.choose_best_move(global_pos, stopped, predicted_score);
 
     //send info to gui
     libchess::UCIInfoParameters info_params;
@@ -47,30 +48,21 @@ void handle_position(const libchess::UCIPositionParameters& params) {
         }
         if (global_pos.previous_move().has_value()) {
             libchess::Move last_move = *global_pos.previous_move(); //get last move and possibly move tree down
-            auto&& next_node = search_root->children.find(last_move.value_sans_type());
-            if (next_node != search_root->children.end()) {
-                search_root = std::move(next_node->second);
-            }
+            mcts.shift_tree_down(last_move.value_sans_type());
         }
     }
 }
 
 int main(int argc, char* argv[]) {
     if (argc > 2 && strcmp(argv[1], "-train") == 0) {
-        train(value_net, argv[2]);
+        Eval evaluator;
+        train(evaluator, argv[2]);
     } 
     else {
-        //torch::load(value_net, /*config::WEIGHTS_PATH*/"D:\\testcpp\\data\\model - Copy.pt");
-        value_net->to(at::kCUDA);
-        //std::cout << value_net << std::endl;
-        libchess::Position pos{"4r3/1P6/P7/2Nb3p/1K4k1/3R2P1/8/8 b - - 2 98"};
-        auto t = serialize(pos).unsqueeze(0);
-        float val = value_net->forward(t.to(at::kCUDA))[0][0].item<float>();
-        std::cout << val << std::endl;
-        //uci.register_position_handler(handle_position);
-        //uci.register_go_handler(handle_go);
-        //uci.register_stop_handler(handle_stop);
-        //uci.run();
+        uci.register_position_handler(handle_position);
+        uci.register_go_handler(handle_go);
+        uci.register_stop_handler(handle_stop);
+        uci.run();
     }    
     return 0;
 }
